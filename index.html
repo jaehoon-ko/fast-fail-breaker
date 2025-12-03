@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>항상 빛나지 않아도 괜찮아 - 방해요인 부수기 게임</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <style>
     * {
@@ -369,7 +370,7 @@ border: none;
     ];
 
     // 설정값
-    const CLICKS_TO_BREAK = 25; // 👉 50 → 25로 줄임
+    const CLICKS_TO_BREAK = 10; // 👉 50 → 25로 줄임
     const BEST_KEY = "fastFailBreaker_bestTime_v2";
 
     const gridEl = document.getElementById("blockGrid");
@@ -505,3 +506,4 @@ border: none;
   </script>
 </body>
 </html>
+
