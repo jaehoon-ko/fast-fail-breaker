@@ -502,9 +502,24 @@ border: none;
       resultEl.textContent = "최고 기록을 초기화했습니다.";
     });
 
+    // 🔹 iOS 더블탭 줌 방지용
+    let lastTouchEnd = 0;
+    document.addEventListener(
+      "touchend",
+      function (event) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      },
+      { passive: false }
+    );
+    
     initGame();
   </script>
 </body>
 </html>
+
 
 
