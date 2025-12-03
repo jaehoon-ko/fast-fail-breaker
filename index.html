@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>항상 빛나지 않아도 괜찮아 - 방해요인 부수기 게임</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f5f5f5;
+      padding: 16px;
+    }
+
+    .game-wrapper {
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      padding: 20px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #222;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #555;
+    }
+
+    .timer {
+      font-weight: 700;
+      font-size: 14px;
+      color: #e60012;
+    }
+
+    .best-time {
+      font-size: 12px;
+      color: #777;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 10px 0 14px;
+    }
+
+    .block {
+      background: #fff7e6;
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid #f0d6a4;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 90px;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.2s ease;
+    }
+
+    .block:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .block:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .block.disabled {
+      cursor: default;
+      background: #e6f7ff;
+      border-color: #b7e0ff;
+      box-shadow: none;
+    }
+
+    .block-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .block-progress {
+      font-size: 11px;
+      color: #777;
+      margin-bottom: 6px;
+    }
+
+    .hp-bar {
+      width: 100%;
+      height: 6px;
+      background: #ffe4b3;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .hp-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ff9f43, #ff6f3c);
+      transition: width 0.08s ease;
+    }
+
+    .block.done .block-title {
+      color: #0066cc;
+    }
+
+    .block.done .block-progress {
+      color: #0066cc;
+    }
+
+    .result {
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 10px;
+      min-height: 18px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    button {
+      border-radius: 999px;
+      border: none;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+.reset-btn {
+      background: #f0f0f0;
+      color: #555;
+    }
+
+    .clear-best-btn {
+      background: #ffe5e8;
+      color: #aa0011;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    @media (max-width: 480px) {
+      .game-wrapper {
+        padding: 16px;
+      }
+      .grid {
+        gap: 8px;
+      }
+      .block {
+        min-height: 80px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <div class="title">방해요인 부수기 게임</div>
+    <div class="subtitle">
+      빠른 실행·빠른 실패를 막는 9개의 블록을<br>
+      <b>클릭해서 부셔보세요! (각 블록 50클릭)</b>
+    </div>
+
+    <div class="status-bar">
+      <div>⌛ <span class="timer" id="timer">0.00s</span></div>
+      <div class="best-time" id="bestTimeLabel">최고 기록: -</div>
+    </div>
+
+    <div class="grid" id="blockGrid"></div>
+
+    <div class="result" id="resultMsg"></div>
+
+    <div class="controls">
+      <button class="reset-btn" id="restartBtn">다시 시작</button>
+      <button class="clear-best-btn" id="clearBestBtn">최고 기록 초기화</button>
+    </div>
+  </div>
+
+  <script>
+    // 1) 블록 텍스트
+    const blockLabels = [
+      "완벽주의",
+      "끝없는 회의",
+      "보고 라인 눈치",
+      "실패에 대한 두려움",
+      "책임 회피 문화",
+      "규정만 보는 시선",
+      "데이터 없으면 못 해요",
+      "고객보다 내부 사정 우선",
+      "“나중에 하자” 습관"
+    ];
+
+    const CLICKS_TO_BREAK = 50;
+    const BEST_KEY = "fastFailBreaker_bestTime_v1";
+
+    const gridEl = document.getElementById("blockGrid");
+    const timerEl = document.getElementById("timer");
+    const resultEl = document.getElementById("resultMsg");
+    const bestTimeLabel = document.getElementById("bestTimeLabel");
+    const restartBtn = document.getElementById("restartBtn");
+    const clearBestBtn = document.getElementById("clearBestBtn");
+
+    let blocks = [];
+    let startTime = null;
+    let timerInterval = null;
+    let gameFinished = false;
+
+    // 최고 기록 표시
+    function loadBestTime() {
+      const best = localStorage.getItem(BEST_KEY);
+      if (best) {
+        bestTimeLabel.textContent = `최고 기록: ${Number(best).toFixed(2)}s`;
+      } else {
+        bestTimeLabel.textContent = "최고 기록: -";
+      }
+    }
+
+    // 타이머 시작
+    function startTimer() {
+      if (startTime !== null) return;
+      startTime = performance.now();
+      timerInterval = setInterval(() => {
+        if (startTime === null) return;
+        const elapsed = (performance.now() - startTime) / 1000;
+        timerEl.textContent = `${elapsed.toFixed(2)}s`;
+      }, 30);
+    }
+
+    // 타이머 정지
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    // 모든 블록이 깨졌는지 확인
+    function checkAllBroken() {
+      return blocks.every(b => b.clicks >= CLICKS_TO_BREAK);
+    }
+
+    // 게임 초기화
+    function initGame() {
+      stopTimer();
+      startTime = null;
+      gameFinished = false;
+      timerEl.textContent = "0.00s";
+      resultEl.textContent = "";
+
+      gridEl.innerHTML = "";
+      blocks = [];
+
+      blockLabels.forEach((label, idx) => {
+        const block = document.createElement("div");
+        block.className = "block";
+        block.dataset.index = idx;
+
+        block.innerHTML = `
+          <div class="block-title">${label}</div>
+          <div class="block-progress">0 / ${CLICKS_TO_BREAK} 클릭</div>
+          <div class="hp-bar">
+            <div class="hp-fill"></div>
+          </div>
+        `;
+
+        const blockObj = {
+          el: block,
+          titleEl: block.querySelector(".block-title"),
+          progressEl: block.querySelector(".block-progress"),
+          hpFillEl: block.querySelector(".hp-fill"),
+          clicks: 0
+        };
+
+        block.addEventListener("click", () => handleBlockClick(blockObj));
+
+        blocks.push(blockObj);
+        gridEl.appendChild(block);
+      });
+
+      loadBestTime();
+    }
+
+    // 블록 클릭 처리
+    function handleBlockClick(blockObj) {
+      if (gameFinished) return;
+
+      // 타이머는 첫 클릭 시 시작
+      startTimer();
+
+      if (blockObj.clicks >= CLICKS_TO_BREAK) return;
+
+      blockObj.clicks += 1;
+
+      const ratio = blockObj.clicks / CLICKS_TO_BREAK;
+      blockObj.progressEl.textContent = `${blockObj.clicks} / ${CLICKS_TO_BREAK} 클릭`;
+ blockObj.hpFillEl.style.width = `${ratio * 100}%`;
+
+      if (blockObj.clicks >= CLICKS_TO_BREAK) {
+        blockObj.el.classList.add("done", "disabled");
+        blockObj.progressEl.textContent = "깨짐! ✅";
+
+        // 전부 다 깬 경우
+        if (checkAllBroken()) {
+          finishGame();
+        }
+      }
+    }
+
+    // 게임 종료 처리
+    function finishGame() {
+      gameFinished = true;
+      stopTimer();
+
+      const elapsed = (performance.now() - startTime) / 1000;
+      const elapsedFixed = elapsed.toFixed(2);
+      resultEl.textContent = `🎉 모든 방해요인을 부쉈습니다! 기록: ${elapsedFixed}s`;
+
+      const best = localStorage.getItem(BEST_KEY);
+      if (!best || elapsed < Number(best)) {
+        localStorage.setItem(BEST_KEY, elapsed);
+        bestTimeLabel.textContent = `최고 기록: ${elapsedFixed}s (신기록!)`;
+        resultEl.textContent += "  🏆 신기록 달성!";
+      }
+
+// 이벤트
+    restartBtn.addEventListener("click", initGame);
+
+    clearBestBtn.addEventListener("click", () => {
+      localStorage.removeItem(BEST_KEY);
+      loadBestTime();
+      resultEl.textContent = "최고 기록을 초기화했습니다.";
+    });
+
+    // 첫 로딩
+    initGame();
+  </script>
+</body>
+</html>
