@@ -499,19 +499,25 @@
       resultEl.textContent = "최고 기록을 초기화했습니다.";
     });
 
-    // iOS 더블탭 줌 / 더블클릭 줌 방지
-    let lastTouchEnd = 0;
-    document.addEventListener(
-      "touchend",
-      function (event) {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) {
-          event.preventDefault();
-        }
-        lastTouchEnd = now;
-      },
-      { passive: false }
-    );
+// 🔹 iOS 더블탭 줌 방지 (brick은 제외)
+let lastTouchEnd = 0;
+
+document.addEventListener(
+  "touchend",
+  (event) => {
+    if (event.target.closest(".brick")) {
+      lastTouchEnd = Date.now();
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      event.preventDefault();
+    }
+    lastTouchEnd = now;
+  },
+  { passive: false }
+);
 
     document.addEventListener(
       "dblclick",
@@ -525,3 +531,4 @@
   </script>
 </body>
 </html>
+
