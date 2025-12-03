@@ -28,6 +28,8 @@
       padding: 20px;
       width: 100%;
       max-width: 520px;
+      position: relative;
+      overflow: hidden;
     }
 
     .title {
@@ -41,7 +43,6 @@
       font-size: 13px;
       color: #666;
       margin-bottom: 14px;
-      line-height: 1.5;
     }
 
     .status-bar {
@@ -64,24 +65,41 @@
       color: #777;
     }
 
+    /* 벽돌 레이아웃 */
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 8px;
       margin: 10px 0 14px;
     }
 
     .block {
-      background: #fff7e6;
-      border-radius: 12px;
+      background: #f7d7aa;              /* 벽돌색 */
+      border-radius: 6px;
       padding: 10px;
-      border: 1px solid #f0d6a4;
+      border: 1px solid #e2b684;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 90px;
-      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.2s ease;
+      min-height: 70px;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.2s ease, opacity 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 벽돌 표면 느낌 */
+    .block::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.2),
+        rgba(255,255,255,0) 40%,
+        rgba(0,0,0,0.03) 70%
+      );
+      pointer-events: none;
     }
 
     .block:hover {
@@ -96,45 +114,58 @@
 
     .block.disabled {
       cursor: default;
-      background: #e6f7ff;
-      border-color: #b7e0ff;
       box-shadow: none;
     }
 
     .block-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
-      color: #333;
+      color: #3b2a18;
       margin-bottom: 4px;
+      position: relative;
+      z-index: 1;
     }
 
     .block-progress {
       font-size: 11px;
       color: #777;
       margin-bottom: 6px;
+      display: none;   /* ✅ 클릭 횟수 숨기기 */
     }
 
     .hp-bar {
       width: 100%;
       height: 6px;
-      background: #ffe4b3;
+      background: rgba(255,255,255,0.5);
       border-radius: 999px;
       overflow: hidden;
+      position: relative;
+      z-index: 1;
     }
 
     .hp-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #ff9f43, #ff6f3c);
+      background: linear-gradient(90deg, #ffb347, #ff6f3c);
       transition: width 0.08s ease;
     }
 
-    .block.done .block-title {
-      color: #0066cc;
+    /* 깨졌을 때 애니메이션 */
+    @keyframes breakBrick {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      20%  { transform: translate(-2px, -2px) rotate(-2deg); }
+      40%  { transform: translate(2px, 2px) rotate(2deg); }
+      60%  { transform: translate(-1px, 2px) rotate(-3deg); }
+      80%  { transform: translate(1px, -2px) rotate(3deg); }
+      100% { transform: scale(0.8) translateY(6px); opacity: 0.1; }
     }
 
-    .block.done .block-progress {
-      color: #0066cc;
+    .block.broken {
+      animation: breakBrick 0.4s ease-out forwards;
+    }
+
+    .block.broken .block-title {
+      color: #888;
     }
 
     .result {
@@ -173,15 +204,43 @@
       opacity: 0.9;
     }
 
+    /* "빠른 실행" 팝업 */
+    .fast-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      animation: fastPop 0.7s ease-out forwards;
+    }
+
+    .fast-label-inner {
+      background: rgba(230,0,18,0.94);
+      color: #fff;
+      padding: 14px 24px;
+      border-radius: 999px;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.25);
+    }
+
+    @keyframes fastPop {
+      0%   { transform: scale(0.3); opacity: 0; }
+      60%  { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     @media (max-width: 480px) {
       .game-wrapper {
         padding: 16px;
       }
-      .grid {
-        gap: 8px;
+
+.grid {
+        gap: 6px;
       }
       .block {
-        min-height: 80px;
+        min-height: 70px;
       }
     }
   </style>
@@ -190,8 +249,8 @@
   <div class="game-wrapper">
     <div class="title">방해요인 부수기 게임</div>
     <div class="subtitle">
-      빠른 실행·빠른 실패를 막는 9개의 방해요인을<br>
-      <b>클릭해서 부셔보세요! (각 블록 50클릭)</b>
+      빠른 실행·빠른 실패를 막는 9개의 벽돌을<br>
+      <b>클릭해서 부셔보세요! (각 벽돌 25클릭)</b>
     </div>
 
     <div class="status-bar">
@@ -210,167 +269,179 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      // 블록 텍스트 (최종 버전)
-      const blockLabels = [
-        "완벽주의",
-        "끝없는 회의",
-        "새로움에 대한 부정적인 피드백",
-        "실패에 대한 두려움",
-        "끝없는 설득",
-        "책임에 대한 부담",
-        "레퍼런스 없으면 안돼",
-        "고객보다 내부 사정 우선",
-        "“나중에 하자” 습관"
-      ];
+    // 1) 블록 텍스트 (최신 버전)
+    const blockLabels = [
+      "완벽주의",
+      "끝없는 회의",
+      "새로움에 대한 부정적인 피드백",
+      "실패에 대한 두려움",
+      "끝없는 설득",
+      "책임에 대한 부담",
+      "레퍼런스 없으면 안돼",
+      "고객보다 내부 사정 우선",
+      "“나중에 하자” 습관"
+    ];
 
-      const CLICKS_TO_BREAK = 50;
-      const BEST_KEY = "fastFailBreaker_bestTime_v2";
+    // ✅ 한 블록당 클릭 횟수
+    const CLICKS_TO_BREAK = 25;
+    const BEST_KEY = "fastFailBreaker_bestTime_v2";
 
-      const gridEl = document.getElementById("blockGrid");
-      const timerEl = document.getElementById("timer");
-      const resultEl = document.getElementById("resultMsg");
-      const bestTimeLabel = document.getElementById("bestTimeLabel");
-      const restartBtn = document.getElementById("restartBtn");
-      const clearBestBtn = document.getElementById("clearBestBtn");
+    const gridEl = document.getElementById("blockGrid");
+    const timerEl = document.getElementById("timer");
+    const resultEl = document.getElementById("resultMsg");
+    const bestTimeLabel = document.getElementById("bestTimeLabel");
+    const restartBtn = document.getElementById("restartBtn");
+    const clearBestBtn = document.getElementById("clearBestBtn");
+    const gameWrapper = document.querySelector(".game-wrapper");
 
-      let blocks = [];
-      let startTime = null;
-      let timerInterval = null;
-      let gameFinished = false;
+    let blocks = [];
+    let startTime = null;
+    let timerInterval = null;
+    let gameFinished = false;
 
-      function loadBestTime() {
-        try {
-          const best = localStorage.getItem(BEST_KEY);
-          if (best) {
-            bestTimeLabel.textContent = `최고 기록: ${Number(best).toFixed(2)}s`;
-          } else {
-            bestTimeLabel.textContent = "최고 기록: -";
-          }
-        } catch (e) {
-          bestTimeLabel.textContent = "최고 기록: -";
-        }
+    // 최고 기록 표시
+    function loadBestTime() {
+      const best = localStorage.getItem(BEST_KEY);
+      if (best) {
+        bestTimeLabel.textContent = `최고 기록: ${Number(best).toFixed(2)}s`;
+      } else {
+        bestTimeLabel.textContent = "최고 기록: -";
       }
+    }
 
-      function startTimer() {
-        if (startTime !== null) return;
-        startTime = performance.now();
-        timerInterval = setInterval(() => {
-          if (startTime === null) return;
-          const elapsed = (performance.now() - startTime) / 1000;
-          timerEl.textContent = `${elapsed.toFixed(2)}s`;
-        }, 30);
-      }
-
-      function stopTimer() {
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          timerInterval = null;
-        }
-      }
-
-      function checkAllBroken() {
-        return blocks.every(b => b.clicks >= CLICKS_TO_BREAK);
-      }
-
-      function initGame() {
-        stopTimer();
-        startTime = null;
-        gameFinished = false;
-        timerEl.textContent = "0.00s";
-        resultEl.textContent = "";
-
-        gridEl.innerHTML = "";
-        blocks = [];
-
-        blockLabels.forEach((label) => {
-          const block = document.createElement("div");
-          block.className = "block";
-
-          block.innerHTML = `
-            <div class="block-title">${label}</div>
-            <div class="block-progress">0 / ${CLICKS_TO_BREAK} 클릭</div>
-            <div class="hp-bar">
-              <div class="hp-fill"></div>
-            </div>
-          `;
-
-          const blockObj = {
-            el: block,
-            progressEl: block.querySelector(".block-progress"),
-            hpFillEl: block.querySelector(".hp-fill"),
-            clicks: 0
-          };
-
-          block.addEventListener("click", function () {
-            handleBlockClick(blockObj);
-          });
-
-          blocks.push(blockObj);
-          gridEl.appendChild(block);
-        });
-
-        loadBestTime();
-      }
-
-      function handleBlockClick(blockObj) {
-        if (gameFinished) return;
-
-        startTimer();
-
-        if (blockObj.clicks >= CLICKS_TO_BREAK) return;
-
-        blockObj.clicks += 1;
-
-        const ratio = blockObj.clicks / CLICKS_TO_BREAK;
-        blockObj.progressEl.textContent =
-          `${blockObj.clicks} / ${CLICKS_TO_BREAK} 클릭`;
- blockObj.hpFillEl.style.width = `${ratio * 100}%`;
-
-        if (blockObj.clicks >= CLICKS_TO_BREAK) {
-          blockObj.el.classList.add("done", "disabled");
-          blockObj.progressEl.textContent = "깨짐! ✅";
-
-          if (checkAllBroken()) {
-            finishGame();
-          }
-        }
-      }
-
-      function finishGame() {
-        gameFinished = true;
-        stopTimer();
-
+    // 타이머 시작
+    function startTimer() {
+      if (startTime !== null) return;
+      startTime = performance.now();
+      timerInterval = setInterval(() => {
+        if (startTime === null) return;
         const elapsed = (performance.now() - startTime) / 1000;
-        const elapsedFixed = elapsed.toFixed(2);
-        resultEl.textContent =
-          `🎉 모든 방해요인을 부쉈습니다! 기록: ${elapsedFixed}s`;
+        timerEl.textContent = `${elapsed.toFixed(2)}s`;
+      }, 30);
+    }
 
-        try {
-          const best = localStorage.getItem(BEST_KEY);
-          if (!best || elapsed < Number(best)) {
-            localStorage.setItem(BEST_KEY, elapsed);
-            bestTimeLabel.textContent = `최고 기록: ${elapsedFixed}s (신기록!)`;
-            resultEl.textContent += "  🏆 신기록 달성!";
-          }
-        } catch (e) {
-          // 로컬스토리지 막혀 있어도 게임은 돌아가게
-        }
+    // 타이머 정지
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
       }
+    }
 
-      restartBtn.addEventListener("click", initGame);
+    // 모든 블록이 깨졌는지 확인
+    function checkAllBroken() {
+      return blocks.every(b => b.clicks >= CLICKS_TO_BREAK);
+    }
 
-      clearBestBtn.addEventListener("click", function () {
-        try {
-          localStorage.removeItem(BEST_KEY);
-        } catch (e) {}
-        loadBestTime();
-        resultEl.textContent = "최고 기록을 초기화했습니다.";
+    // 게임 초기화
+    function initGame() {
+      stopTimer();
+      startTime = null;
+      gameFinished = false;
+      timerEl.textContent = "0.00s";
+      resultEl.textContent = "";
+
+      // "빠른 실행" 라벨 제거
+      const oldLabel = document.querySelector(".fast-label");
+      if (oldLabel) oldLabel.remove();
+
+      gridEl.innerHTML = "";
+      blocks = [];
+
+      blockLabels.forEach((label, idx) => {
+        const block = document.createElement("div");
+        block.className = "block";
+        block.dataset.index = idx;
+
+        block.innerHTML = `
+          <div class="block-title">${label}</div>
+          <div class="block-progress">0 / ${CLICKS_TO_BREAK} 클릭</div>
+          <div class="hp-bar">
+            <div class="hp-fill"></div>
+          </div>
+        `;
+
+        const blockObj = {
+          el: block,
+          titleEl: block.querySelector(".block-title"),
+          progressEl: block.querySelector(".block-progress"),
+          hpFillEl: block.querySelector(".hp-fill"),
+          clicks: 0
+        };
+
+        block.addEventListener("click", () => handleBlockClick(blockObj));
+
+        blocks.push(blockObj);
+        gridEl.appendChild(block);
       });
 
-      // 첫 로딩
-      initGame();
+      loadBestTime();
+    }
+
+    // 블록 클릭 처리
+    function handleBlockClick(blockObj) {
+      if (gameFinished) return;
+
+      // 타이머는 첫 클릭 시 시작
+      startTimer();
+
+      if (blockObj.clicks >= CLICKS_TO_BREAK) return;
+
+      blockObj.clicks += 1;
+
+      const ratio = blockObj.clicks / CLICKS_TO_BREAK;
+      // 텍스트는 숨겨져 있지만 내부적으로는 업데이트
+      blockObj.progressEl.textContent = `${blockObj.clicks} / ${CLICKS_TO_BREAK} 클릭`;
+ blockObj.hpFillEl.style.width = `${ratio * 100}%`;
+
+      if (blockObj.clicks >= CLICKS_TO_BREAK) {
+        blockObj.el.classList.add("disabled", "broken");
+
+        // 전부 다 깬 경우
+        if (checkAllBroken()) {
+          finishGame();
+        }
+      }
+    }
+
+    // 게임 종료 처리
+    function finishGame() {
+      gameFinished = true;
+      stopTimer();
+
+      const elapsed = (performance.now() - startTime) / 1000;
+      const elapsedFixed = elapsed.toFixed(2);
+      resultEl.textContent = `🎉 모든 방해요인을 부쉈습니다! 기록: ${elapsedFixed}s`;
+
+      const best = localStorage.getItem(BEST_KEY);
+      if (!best || elapsed < Number(best)) {
+        localStorage.setItem(BEST_KEY, elapsed);
+        bestTimeLabel.textContent = `최고 기록: ${elapsedFixed}s (신기록!)`;
+        resultEl.textContent += "  🏆 신기록 달성!";
+      }
+
+      // ✅ "빠른 실행" 라벨 표시
+      const label = document.createElement("div");
+      label.className = "fast-label";
+      label.innerHTML = `
+        <div class="fast-label-inner">
+          빠른 실행
+        </div>
+      `;
+      gameWrapper.appendChild(label);
+    }
+
+    // 이벤트
+    restartBtn.addEventListener("click", initGame);
+
+    clearBestBtn.addEventListener("click", () => {
+      localStorage.removeItem(BEST_KEY);
+      loadBestTime();
+      resultEl.textContent = "최고 기록을 초기화했습니다.";
     });
+
+    // 첫 로딩
+    initGame();
   </script>
 </body>
 </html>
