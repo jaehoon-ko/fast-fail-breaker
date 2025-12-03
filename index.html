@@ -20,6 +20,7 @@
       align-items: center;
       background: #111827;
       padding: 16px;
+      touch-action: manipulation; /* 더블탭 줌 방지 도움 */
     }
 
     .game-wrapper {
@@ -143,6 +144,7 @@
       box-shadow: 0 2px 0 rgba(0,0,0,0.6);
       transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.2s ease, opacity 0.25s ease;
       border: 1px solid rgba(0,0,0,0.7);
+      touch-action: manipulation; /* 개별 벽돌에서도 더블탭 줌 방지 */
     }
 
     .brick::before {
@@ -184,7 +186,7 @@
       box-shadow: 0 0 0 rgba(0,0,0,0.5);
     }
 
-    /* 깨지기 직전 약간 흔들리는 느낌을 줄 수도 있음(선택) */
+    /* 살짝 튕기는 타격감 */
     .brick.hit {
       animation: brickHit 0.12s ease;
     }
@@ -238,8 +240,7 @@
 
     button {
       border-radius: 999px;
-
-border: none;
+      border: none;
       padding: 7px 12px;
       font-size: 12px;
       cursor: pointer;
@@ -272,7 +273,7 @@ border: none;
       transition: opacity 0.3s ease;
     }
 
-.overlay.show {
+    .overlay.show {
       opacity: 1;
     }
 
@@ -356,7 +357,7 @@ border: none;
   </div>
 
   <script>
-    // 블록 라벨 (최신 버전)
+    // 블록 라벨
     const blockLabels = [
       "완벽주의",
       "끝없는 회의",
@@ -369,8 +370,7 @@ border: none;
       "“나중에 하자” 습관"
     ];
 
-    // 설정값
-    const CLICKS_TO_BREAK = 10; // 👉 50 → 25로 줄임
+    const CLICKS_TO_BREAK = 10;
     const BEST_KEY = "fastFailBreaker_bestTime_v2";
 
     const gridEl = document.getElementById("blockGrid");
@@ -432,9 +432,7 @@ border: none;
         brickEl.className = "brick";
         brickEl.dataset.index = idx;
 
-        brickEl.innerHTML = `
-          <div class="brick-label">${label}</div>
-        `;
+        brickEl.innerHTML = `<div class="brick-label">${label}</div>`;
 
         const brickObj = {
           el: brickEl,
@@ -460,9 +458,9 @@ border: none;
 
       brickObj.clicks += 1;
 
-      // 살짝 피드백 애니메이션
+      // 타격감
       brickObj.el.classList.remove("hit");
-      void brickObj.el.offsetWidth; // reflow for restart animation
+      void brickObj.el.offsetWidth;
       brickObj.el.classList.add("hit");
 
       if (brickObj.clicks >= CLICKS_TO_BREAK) {
@@ -490,7 +488,6 @@ border: none;
         resultEl.textContent += "  🏆 신기록 달성!";
       }
 
-      // "빠른 실행!" 오버레이 표시
       overlayEl.classList.add("show");
     }
 
@@ -502,7 +499,7 @@ border: none;
       resultEl.textContent = "최고 기록을 초기화했습니다.";
     });
 
-    // 🔹 iOS 더블탭 줌 방지용
+    // iOS 더블탭 줌 / 더블클릭 줌 방지
     let lastTouchEnd = 0;
     document.addEventListener(
       "touchend",
@@ -515,11 +512,16 @@ border: none;
       },
       { passive: false }
     );
-    
+
+    document.addEventListener(
+      "dblclick",
+      function (event) {
+        event.preventDefault();
+      },
+      { passive: false }
+    );
+
     initGame();
   </script>
 </body>
 </html>
-
-
-
